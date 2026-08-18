@@ -8,6 +8,7 @@ MODEL=$(awk -F'=' '/^model_name=/{print $2}' "$ENVF")
 CHIP=$(awk -F'='  '/^chip=/{print $2}'       "$ENVF")
 MEM=$(awk -F'='   '/^memory_gb=/{print $2}'  "$ENVF")
 TOPMEM=$(awk -F'=' '/^top_mem=/{sub(/^top_mem=/,""); print}' "$ENVF")
+DISPLIST=$(awk -F'=' '/^display_list=/{sub(/^display_list=/,""); print}' "$ENVF")
 
 N_NG=$(awk -F'\t'   '$4=="NG"{n++}   END{print n+0}' "$TSV")
 N_WARN=$(awk -F'\t' '$4=="WARN"{n++} END{print n+0}' "$TSV")
@@ -96,6 +97,26 @@ HEAD
 
 [ "$N_NG" -gt 0 ]   && { echo '<h2>🔴 要対応</h2>'; cards NG; }
 [ "$N_WARN" -gt 0 ] && { echo '<h2>🟡 注意</h2>'; cards WARN; }
+
+# 接続中のモニタと、その接続方式。判定の根拠を本人が確認できるようにする。
+if [ -n "${DISPLIST:-}" ] && [ "$DISPLIST" != "UNKNOWN" ]; then
+  echo '<h2>接続中のモニタ</h2>'
+  echo '<div class="mem">'
+  printf '  <p class="hint">「DisplayLink」と出ているモニタは、映像をCPUで作って送る方式です。Macに直結すると軽くなります。</p>\n'
+  printf '%s' "$DISPLIST" | tr ',' '\n' | while IFS= read -r item; do
+    [ -n "$item" ] || continue
+    dn=$(printf '%s' "$item" | awk -F: '{NF--; print}' OFS=:)
+    dc=$(printf '%s' "$item" | awk -F: '{print $NF}')
+    case "$dc" in
+      DisplayLink) mk='<span class="impact i大" style="background:#e02424">DisplayLink</span>' ;;
+      Internal)    mk='<span class="impact i小">内蔵</span>' ;;
+      *)           mk='<span class="impact i大">直結</span>' ;;
+    esac
+    printf '  <div class="memrow"><span class="nm">%s</span><span style="flex:1">%s %s</span></div>\n' \
+      "$(printf '%s' "$dn" | esc)" "$mk" "$(printf '%s' "$dc" | esc)"
+  done
+  echo '</div>'
+fi
 
 # メモリを多く使っているアプリ。何を閉じればよいかを名指しで示す。
 if [ -n "${TOPMEM:-}" ] && [ "$TOPMEM" != "UNKNOWN" ]; then

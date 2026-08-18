@@ -38,7 +38,7 @@ assert_status healthy.env          uptime OK
 assert_status memory_pressure.env  uptime WARN
 
 echo "== 出力の完全性 =="
-for f in healthy memory_pressure displaylink_idle thermal_air fresh_boot_pressure; do
+for f in healthy memory_pressure displaylink_idle thermal_air fresh_boot_pressure dl_installed_not_used; do
   n=$(bash "$SRC_DIR/judge.sh" < "$TEST_DIR/fixtures/$f.env" | wc -l | tr -d ' ')
   assert_eq "$f.env は8項目を出力する" 8 "$n"
   cols=$(bash "$SRC_DIR/judge.sh" < "$TEST_DIR/fixtures/$f.env" | awk -F'\t' '{print NF}' | sort -u | tr '\n' ' ')
@@ -47,7 +47,7 @@ done
 
 echo "== 改善予測 =="
 # NG / WARN には必ず予測と体感度が入り、OK / UNKNOWN には入らないことを固定する。
-for f in healthy memory_pressure displaylink_idle thermal_air fresh_boot_pressure; do
+for f in healthy memory_pressure displaylink_idle thermal_air fresh_boot_pressure dl_installed_not_used; do
   bad_missing=$(bash "$SRC_DIR/judge.sh" < "$TEST_DIR/fixtures/$f.env" \
     | awk -F'\t' '($4=="NG"||$4=="WARN") && ($9=="-"||$9==""||$10=="-"||$10=="")' | wc -l | tr -d ' ')
   assert_eq "$f.env: NG/WARN に予測がある" 0 "$bad_missing"
@@ -82,5 +82,14 @@ fi
 
 echo "== 閉じるべきアプリ名を示す =="
 assert_contains memory_pressure.env "Google Chrome"
+
+echo "== DisplayLinkが入っているだけで使っていない場合は誤判定しない =="
+# ソフトは常駐しているが、モニタ2枚は DisplayPort で直結されているケース。
+# 以前はこれを 🔴 と誤判定していた（実際に報告があった）。
+assert_status  dl_installed_not_used.env display_link OK
+assert_contains dl_installed_not_used.env "直結"
+
+echo "== 実際にDisplayLink経由なら従来どおり検出する =="
+assert_status memory_pressure.env display_link NG
 
 finish

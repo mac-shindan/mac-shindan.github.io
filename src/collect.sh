@@ -48,18 +48,35 @@ else
   emit_kv displaylink_process 0
 fi
 
-# --- 外部モニタの台数 ---
-# 実測: ディスプレイ名は8スペース字下げの "名前:" 行。内蔵にのみ
-# "Connection Type: Internal" が付くため、全体数から内蔵分を引く。
+# --- モニタ1枚ずつの接続方式 ---
+# ソフトの常駐有無ではなく、モニタ自体を見る。DisplayLink の仮想ディスプレイは
+# 接続方式(Connection Type)を持たないため、そこで見分けられる。
+#   内蔵            -> Internal
+#   直結の外部      -> DisplayPort / HDMI 等
+#   DisplayLink経由 -> 情報なし
+# 「DisplayLink Manager が入っているだけで使っていない」人を誤判定しないため、
+# この方式に変更した（実際に誤判定の報告があった）。
 DISP=$(system_profiler SPDisplaysDataType 2>/dev/null)
 if [ -n "$DISP" ]; then
-  TOTAL=$(printf '%s\n' "$DISP" | grep -cE '^ {8}[^ ].*:$')
-  INTERNAL=$(printf '%s\n' "$DISP" | grep -c 'Connection Type: Internal')
-  EXT=$((TOTAL - INTERNAL))
-  [ "$EXT" -lt 0 ] && EXT=0
-  emit_kv external_display_count "$EXT"
+  COUNTS=$(printf '%s\n' "$DISP" | awk '
+    /^        [^ ].*:$/ { n++; ct[n]=""; next }
+    /^ +Connection Type: / { c=$0; sub(/^ +Connection Type: +/,"",c); if(n>0) ct[n]=c }
+    END {
+      ni=0; nd=0; nn=0
+      for(i=1;i<=n;i++){ if(ct[i]=="Internal") ni++; else if(ct[i]=="") nd++; else nn++ }
+      printf "%d %d", nn+nd, nd
+    }')
+  emit_kv external_display_count    "$(printf '%s' "$COUNTS" | awk '{print $1}')"
+  emit_kv displaylink_display_count "$(printf '%s' "$COUNTS" | awk '{print $2}')"
+  # 画面に根拠を出すため、モニタ名と接続方式の一覧も渡す
+  emit_kv display_list "$(printf '%s\n' "$DISP" | awk '
+    /^        [^ ].*:$/ { n++; nm[n]=$0; sub(/^ +/,"",nm[n]); sub(/:$/,"",nm[n]); ct[n]=""; next }
+    /^ +Connection Type: / { c=$0; sub(/^ +Connection Type: +/,"",c); if(n>0) ct[n]=c }
+    END { for(i=1;i<=n;i++) printf "%s%s:%s", (i>1?",":""), nm[i], (ct[i]==""?"DisplayLink":ct[i]) }')"
 else
-  emit_kv external_display_count UNKNOWN
+  emit_kv external_display_count    UNKNOWN
+  emit_kv displaylink_display_count UNKNOWN
+  emit_kv display_list              UNKNOWN
 fi
 
 # --- WindowServer の CPU 使用率 ---

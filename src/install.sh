@@ -17,9 +17,27 @@ case "$APP_SRC" in
 esac
 [ -d "$APP_SRC" ] || exit 0
 
-# すでに設置済み、または設置先から起動された場合は何もしない
+# 設置先から起動された場合は何もしない
 [ "$APP_SRC" = "$DEST" ] && exit 0
-[ -e "$DEST" ] && exit 0
+
+# すでに設置済みなら、中身の指紋を比べて古ければ黙って入れ替える。
+# 以前は「設置済みなら何もしない」だったため、更新のたびに利用者が手で
+# 削除する必要があった。Dock のアイコンはそのまま使えるので触らない。
+ID_FILE=Contents/Resources/macdoctor/BUILD_ID
+if [ -e "$DEST" ]; then
+  SRC_ID=$(cat "$APP_SRC/$ID_FILE" 2>/dev/null || echo "unknown-src")
+  DST_ID=$(cat "$DEST/$ID_FILE"    2>/dev/null || echo "unknown-dst")
+  if [ "$SRC_ID" = "$DST_ID" ]; then
+    exit 0
+  fi
+  rm -rf "$DEST"
+  ditto "$APP_SRC" "$DEST" || exit 0
+  xattr -dr com.apple.quarantine "$DEST" 2>/dev/null || true
+  LSREG=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+  [ -x "$LSREG" ] && "$LSREG" -f "$DEST" >/dev/null 2>&1 || true
+  echo "updated: $DEST"
+  exit 0
+fi
 
 # テスト時は MACDOCTOR_INSTALL_ANSWER で応答を差し込む（ダイアログを出さない）
 ANSWER="${MACDOCTOR_INSTALL_ANSWER:-}"

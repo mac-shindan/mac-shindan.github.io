@@ -7,6 +7,7 @@ SANDBOX=$(mktemp -d)
 FAKE_APP="$SANDBOX/src/Mac診断.app"
 mkdir -p "$FAKE_APP/Contents/Resources/macdoctor"
 printf 'dummy\n' > "$FAKE_APP/Contents/Resources/macdoctor/mac-doctor.sh"
+printf 'v1\n' > "$FAKE_APP/Contents/Resources/macdoctor/BUILD_ID"
 
 run_install() { # $1=引数 $2=応答 → 標準出力
   HOME="$SANDBOX/home" MACDOCTOR_INSTALL_ANSWER="$2" \
@@ -39,8 +40,25 @@ else
   FAILED=$((FAILED+1)); printf '  FAIL コピーされていない\n'
 fi
 
-echo "== 2回目は何もしない（二重設置しない） =="
-assert_eq "設置済みなら再設置しない" "" "$(run_install "$FAKE_APP" 追加する)"
+echo "== 同じ内容なら何もしない（二重設置しない） =="
+assert_eq "指紋が同じなら再設置しない" "" "$(run_install "$FAKE_APP" 追加する)"
+
+echo "== 中身が新しくなっていたら自動で入れ替える =="
+printf 'v2\n' > "$FAKE_APP/Contents/Resources/macdoctor/BUILD_ID"
+printf 'updated-content\n' > "$FAKE_APP/Contents/Resources/macdoctor/mac-doctor.sh"
+OUT2=$(run_install "$FAKE_APP" あとで)   # 確認ダイアログ無しでも更新されること
+case "$OUT2" in
+  updated:*) PASSED=$((PASSED+1)); printf '  ok   古い設置を自動更新した\n' ;;
+  *) FAILED=$((FAILED+1)); printf '  FAIL 自動更新されなかった (出力: %s)\n' "${OUT2:-空}" ;;
+esac
+if grep -q 'updated-content' "$SANDBOX/home/Applications/Mac診断.app/Contents/Resources/macdoctor/mac-doctor.sh" 2>/dev/null; then
+  PASSED=$((PASSED+1)); printf '  ok   新しい中身に置き換わっている\n'
+else
+  FAILED=$((FAILED+1)); printf '  FAIL 中身が古いまま\n'
+fi
+
+echo "== 更新後にもう一度実行しても何もしない =="
+assert_eq "更新後は再実行で何もしない" "" "$(run_install "$FAKE_APP" 追加する)"
 
 rm -rf "$SANDBOX"
 finish

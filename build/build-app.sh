@@ -38,6 +38,11 @@ mkdir -p "$APP/Contents/Resources/macdoctor"
 cp "$ROOT/src/"*.sh "$APP/Contents/Resources/macdoctor/"
 chmod +x "$APP/Contents/Resources/macdoctor/"*.sh
 
+# 中身の指紋を埋め込む。設置済みのアプリが古いかどうかを、この指紋の
+# 一致で判定する。バージョン番号を手で管理する必要がなく、取り違えも起きない。
+( cd "$ROOT/src" && cat *.sh | shasum -a 256 | awk '{print $1}' ) \
+  > "$APP/Contents/Resources/macdoctor/BUILD_ID"
+
 # 結果画面の「再診断」ボタンから起動できるよう、専用リンクを登録する。
 # ブラウザは他人のMacでプログラムを実行できないが、アプリが登録した専用リンク
 # （macshindan://）なら macOS 側が受け取ってアプリを起動できる。

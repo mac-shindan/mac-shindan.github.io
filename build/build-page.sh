@@ -8,7 +8,9 @@
 set -eu
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP="$ROOT/build/Mac診断.app"
-ZIP="$ROOT/build/Mac診断.zip"
+# リリースに上げるファイル名と一致させる。別名にすると古い zip を
+# 配布してしまう事故が起きる（実際に一度起きた）。
+ZIP="$ROOT/build/Mac-Shindan.zip"
 TPL="$ROOT/build/page-template.html"
 OUT="$ROOT/build/distribute.html"
 

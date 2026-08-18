@@ -58,6 +58,10 @@ macOS 13 以降 / Apple Silicon・Intel 両対応
 **取得しないもの**: ファイル名、書類の中身、ブラウザの履歴、開いている
 タブ、アカウント情報、プロセスのコマンドライン全文
 
+診断のあと、新しい版が出ていないかの確認のためだけに配布サイトへ接続します。
+このとき Mac の情報は一切送信しません。新しい版があればアプリ終了後に自動で
+入れ替わるため、利用者の操作は不要です。
+
 結果は実行した Mac の中にのみ保存されます。**自動送信は一切行いません。**
 共有するかどうかは、結果画面の「結果をコピー」ボタンを押すかどうかで
 利用者が決められます。
@@ -77,6 +81,7 @@ macOS 13 以降 / Apple Silicon・Intel 両対応
 | `src/judge.sh` | 判定。実機非依存なのでテストできる |
 | `src/report.sh` | 結果画面の生成 |
 | `src/install.sh` | 2 回目以降をワンクリックにする設置 |
+| `src/update.sh` | 新しい版の確認と自動更新 |
 | `src/mac-doctor.sh` | 実行本体 |
 
 macOS 標準の bash と標準コマンドだけで動きます。Python も Homebrew も
@@ -88,6 +93,7 @@ macOS 標準の bash と標準コマンドだけで動きます。Python も Hom
 bash tests/test_judge.sh     # 判定ロジックのテスト（実機不要）
 bash tests/test_report.sh    # 結果画面のテスト
 bash tests/test_install.sh   # 設置処理のテスト
+bash tests/test_update.sh    # 自動更新のテスト
 bash tests/smoke_collect.sh  # 実機計測のスモークテスト
 
 bash build/build-app.sh      # 配布用アプリの生成

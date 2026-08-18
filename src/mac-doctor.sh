@@ -19,3 +19,7 @@ open "$OUT"
 # SCRIPT_DIR は .app 内では Contents/Resources/macdoctor を指す。
 APP_SRC=$(cd "$SCRIPT_DIR/../../.." 2>/dev/null && pwd) || APP_SRC=""
 [ -n "$APP_SRC" ] && bash "$SCRIPT_DIR/install.sh" "$APP_SRC" || true
+
+# 設置済みアプリから起動された場合は、新しい版が出ていないか確認する。
+# 「再診断」ボタンやDockから使い続ける人が古い版のままにならないようにする。
+bash "$SCRIPT_DIR/update.sh" >/dev/null 2>&1 || true

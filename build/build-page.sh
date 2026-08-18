@@ -48,6 +48,9 @@ DATE=$(date '+%Y-%m-%d')
   printf '%s\n' '</body>' '</html>'
 } > "$OUT"
 
+# 自動更新の判定に使う指紋を公開する。アプリ内の指紋と比べて古ければ更新する。
+cp "$APP/Contents/Resources/macdoctor/BUILD_ID" "$ROOT/build/BUILD_ID"
+
 # ターミナル実行用のワンライナーも同じURLで生成する
 sed "s|__DOWNLOAD_URL__|$DOWNLOAD_URL|g" "$ROOT/build/run-template.sh" > "$ROOT/build/run.sh"
 chmod +x "$ROOT/build/run.sh"

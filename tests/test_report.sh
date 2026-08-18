@@ -46,5 +46,14 @@ else
 fi
 rm -f "$TSV2"
 
+echo "== 再診断ボタン =="
+for needle in 'href="macshindan://run"' 'もう一度診断する' 'Dock の Mac診断'; do
+  if printf '%s\n' "$HTML" | grep -qF "$needle"; then
+    PASSED=$((PASSED+1)); printf '  ok   "%s" を含む\n' "$needle"
+  else
+    FAILED=$((FAILED+1)); printf '  FAIL "%s" を含まない\n' "$needle"
+  fi
+done
+
 rm -f "$TSV"
 finish

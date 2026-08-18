@@ -40,6 +40,11 @@ ditto "$APP_SRC" "$DEST" || exit 0
 # 次回以降に「開発元を検証できません」を出す必要はない。
 xattr -dr com.apple.quarantine "$DEST" 2>/dev/null || true
 
+# 専用リンク(macshindan://)を macOS に登録する。
+# これで結果画面の「再診断」ボタンからアプリを起動できるようになる。
+LSREG=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
+[ -x "$LSREG" ] && "$LSREG" -f "$DEST" >/dev/null 2>&1 || true
+
 # Dock に追加する
 defaults write com.apple.dock persistent-apps -array-add "<dict><key>tile-data</key><dict><key>file-data</key><dict><key>_CFURLString</key><string>$DEST</string><key>_CFURLStringType</key><integer>0</integer></dict></dict></dict>" 2>/dev/null || true
 killall Dock 2>/dev/null || true

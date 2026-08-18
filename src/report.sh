@@ -81,8 +81,12 @@ h2{font-size:15px;margin:28px 0 10px;color:var(--sub)}
 .memrow .bar{flex:1;height:9px;background:var(--bg);border-radius:99px;overflow:hidden}
 .memrow .bar i{display:block;height:100%;background:#e02424;border-radius:99px}
 .memrow .gb{flex:0 0 62px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:28px}
+.rerun{display:inline-block;padding:12px 22px;font-size:15px;font-weight:700;text-decoration:none;
+ border-radius:10px;background:#0e9f6e;color:#fff;border:1px solid transparent}
+.rerun:hover{filter:brightness(1.08)}
 details{margin-top:8px}summary{cursor:pointer;color:var(--sub);font-size:14px;padding:6px 0}
-button{margin-top:28px;padding:12px 20px;font-size:15px;font-weight:700;cursor:pointer;
+button{padding:12px 20px;font-size:15px;font-weight:700;cursor:pointer;
  border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--fg)}
 </style></head><body><div class="wrap">
 <h1>Mac 診断結果</h1>
@@ -121,7 +125,12 @@ COPY=$(awk -F'\t' '{printf "%s: %s (%s)\n", $3, $4, $5}' "$TSV")
 cat <<FOOT
 <div class="note">「対処すると」に書かれた数値は目安です。スワップ・圧縮メモリの解放と熱の回復は確実に起きますが、
 それ以外は使い方によって変わります。対処後にもう一度診断すると実際の数値を確認できます。</div>
+<div class="actions">
+<a class="rerun" href="macshindan://run">もう一度診断する</a>
 <button onclick="navigator.clipboard.writeText(document.getElementById('raw').textContent);this.textContent='コピーしました'">結果をコピー</button>
+</div>
+<div class="note">「もう一度診断する」が反応しない場合は、Dock の Mac診断 アイコンをクリックしてください。
+（このボタンはアプリを設置済みの場合のみ使えます）</div>
 <pre id="raw" style="display:none">$(printf '%s' "$MODEL / $CHIP / メモリ ${MEM}GB" | esc)
 $(printf '%s' "$COPY" | esc)</pre>
 </div></body></html>

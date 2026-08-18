@@ -79,6 +79,22 @@ emit_kv chrome_helper_count "$(pgrep -f 'Google Chrome Helper' 2>/dev/null | wc 
 emit_kv node_count          "$(pgrep -x node 2>/dev/null | wc -l | tr -d ' ')"
 emit_kv claude_count        "$(pgrep -fi claude 2>/dev/null | wc -l | tr -d ' ')"
 
+# --- メモリを多く使っているアプリ（上位5件・GB） ---
+# ヘルパープロセスは親アプリに合算する。Chrome のように数十個に分かれるアプリは
+# 個別に見ても判断できないため。表示するのはアプリ名と使用量のみで、
+# 何のファイルを開いているか等は一切扱わない。
+TOP_MEM=$(ps -axo rss,comm 2>/dev/null | awk '
+  NR>1 {
+    rss=$1; $1=""; p=substr($0,2)
+    if (match(p, /\/[^\/]+\.app\//))      n=substr(p, RSTART+1, RLENGTH-6)
+    else if (match(p, /\/[^\/]+\.app$/))   n=substr(p, RSTART+1, RLENGTH-5)
+    else { k=split(p, a, "/"); n=a[k] }
+    if (n != "") m[n]+=rss
+  }
+  END { for (k in m) printf "%.9f\t%s\n", m[k]/1048576, k }
+' | sort -rn | awk -F'\t' '$1+0>=0.3 {printf "%s:%.1f\n", $2, $1}' | head -5 | paste -sd, -)
+emit_kv top_mem "$TOP_MEM"
+
 # --- 未再起動日数 ---
 # 実測: "{ sec = 1785823368, usec = 946996 } Tue Aug  4 15:02:48 2026"
 BOOT=$(sysctl -n kern.boottime 2>/dev/null | awk -F'[= ,]+' '{print $3}')

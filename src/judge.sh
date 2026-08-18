@@ -15,7 +15,7 @@ FREE_PCT=UNKNOWN;            SWAP_USED_MB=UNKNOWN;   COMPRESSED_GB=UNKNOWN
 DISPLAYLINK_PROCESS=UNKNOWN; EXTERNAL_DISPLAY_COUNT=UNKNOWN
 WINDOWSERVER_CPU=UNKNOWN;    CPU_SPEED_LIMIT=UNKNOWN
 CHROME_HELPER_COUNT=UNKNOWN; NODE_COUNT=UNKNOWN;     CLAUDE_COUNT=UNKNOWN
-UPTIME_DAYS=UNKNOWN;         MODEL_NAME=UNKNOWN
+UPTIME_DAYS=UNKNOWN;         MODEL_NAME=UNKNOWN;     TOP_MEM=UNKNOWN
 CHIP=UNKNOWN;                MEMORY_GB=UNKNOWN
 
 while IFS='=' read -r k v; do
@@ -31,6 +31,7 @@ while IFS='=' read -r k v; do
     node_count)             NODE_COUNT="$v" ;;
     claude_count)           CLAUDE_COUNT="$v" ;;
     uptime_days)            UPTIME_DAYS="$v" ;;
+    top_mem)                TOP_MEM="$v" ;;
     model_name)             MODEL_NAME="$v" ;;
     chip)                   CHIP="$v" ;;
     memory_gb)              MEMORY_GB="$v" ;;
@@ -45,6 +46,16 @@ lt() { awk -v a="$1" -v b="$2" 'BEGIN{exit !(a+0< b+0)}'; }
 # MB を読みやすい単位にする: 20941 -> 20.4GB / 300 -> 300MB
 mb_h() { awk -v m="$1" 'BEGIN{ if (m+0>=1024) printf "%.1fGB", m/1024; else printf "%dMB", m }'; }
 
+# メモリ上位アプリを読みやすくする: "Google Chrome:10.5,Slack:1.2" -> "Google Chrome（10.5GB）"
+top_app() {
+  [ "$TOP_MEM" = "UNKNOWN" ] || [ -z "$TOP_MEM" ] && { echo "使っていないアプリ"; return; }
+  printf '%s' "$TOP_MEM" | awk -F, '{n=split($1,a,":"); printf "%s（%sGB）", a[1], a[n]}'
+}
+# 直近に再起動したか（1日未満なら再起動を勧めても意味がない）
+recently_booted() {
+  [ "$UPTIME_DAYS" != "UNKNOWN" ] && [ "$UPTIME_DAYS" -lt 1 ] 2>/dev/null
+}
+
 emit() {
   printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
     "$1" "$2" "$3" "$4" "$5" "$6" "$7" "$8" "$9" "${10}"
@@ -55,16 +66,26 @@ if [ "$SWAP_USED_MB" = "UNKNOWN" ]; then
   emit swap 重さ "スワップ" UNKNOWN "-" "512MB未満" \
     "スワップ使用量を取得できませんでした" "-" "-" "-"
 elif ge "$SWAP_USED_MB" "$TH_SWAP_NG"; then
-  emit swap 重さ "スワップ" NG "$(mb_h "$SWAP_USED_MB")" "512MB未満" \
-    "メモリが足りず、SSDへの退避が大量に発生しています。「固まる」の直接原因です" \
-    "不要なアプリを閉じて再起動してください。何度も再発するならメモリ増設が必要です" \
-    "再起動でスワップは必ず解放されます: $(mb_h "$SWAP_USED_MB") → ほぼ 0" \
-    "大"
+  # 再起動直後にこの値なら、原因は「再起動していないこと」ではなく
+  # 搭載メモリに対する使用量そのもの。再起動を勧めるのは誤案内になる。
+  if recently_booted; then
+    emit swap 重さ "スワップ" NG "$(mb_h "$SWAP_USED_MB")" "512MB未満" \
+      "メモリが足りず、SSDへの退避が大量に発生しています。「固まる」の直接原因です。再起動して間もないので、原因は搭載メモリ(${MEMORY_GB}GB)に対して使用量が多すぎることです" \
+      "$(top_app) を閉じてください。これが最も多くメモリを使っています" \
+      "$(top_app) を閉じるとスワップは徐々に減ります。再起動しても、同じ使い方をすればまた増えます" \
+      "大"
+  else
+    emit swap 重さ "スワップ" NG "$(mb_h "$SWAP_USED_MB")" "512MB未満" \
+      "メモリが足りず、SSDへの退避が大量に発生しています。「固まる」の直接原因です" \
+      "$(top_app) を閉じてから再起動してください。何度も再発するならメモリ増設が必要です" \
+      "再起動でスワップは必ず解放されます: $(mb_h "$SWAP_USED_MB") → ほぼ 0" \
+      "大"
+  fi
 elif ge "$SWAP_USED_MB" "$TH_SWAP_WARN"; then
   emit swap 重さ "スワップ" WARN "$(mb_h "$SWAP_USED_MB")" "512MB未満" \
     "メモリがやや不足しています" \
-    "使っていないアプリを閉じてください" \
-    "再起動でスワップは必ず解放されます: $(mb_h "$SWAP_USED_MB") → ほぼ 0" \
+    "$(top_app) を閉じると余裕ができます" \
+    "アプリを閉じるとスワップは徐々に減ります" \
     "小"
 else
   emit swap 重さ "スワップ" OK "$(mb_h "$SWAP_USED_MB")" "512MB未満" \
@@ -97,17 +118,33 @@ if [ "$COMPRESSED_GB" = "UNKNOWN" ]; then
   emit compressed 重さ "圧縮メモリ" UNKNOWN "-" "4GB未満" \
     "圧縮メモリを取得できませんでした" "-" "-" "-"
 elif ge "$COMPRESSED_GB" "$TH_COMPRESSED_NG"; then
-  emit compressed 重さ "圧縮メモリ" NG "${COMPRESSED_GB}GB" "4GB未満" \
-    "メモリが限界まで圧縮されています。長時間再起動していないMacで起きやすい状態です" \
-    "Macを再起動してください" \
-    "再起動で圧縮メモリは必ず解放されます: ${COMPRESSED_GB}GB → ほぼ 0" \
-    "大"
+  if recently_booted; then
+    emit compressed 重さ "圧縮メモリ" NG "${COMPRESSED_GB}GB" "4GB未満" \
+      "メモリが限界まで圧縮されています。再起動して間もないため、搭載メモリ(${MEMORY_GB}GB)に対して使用量が多すぎるのが原因です" \
+      "$(top_app) を閉じてください" \
+      "$(top_app) を閉じれば圧縮は減ります。再起動しても同じ使い方ならすぐ元に戻ります" \
+      "大"
+  else
+    emit compressed 重さ "圧縮メモリ" NG "${COMPRESSED_GB}GB" "4GB未満" \
+      "メモリが限界まで圧縮されています。長時間再起動していないMacで起きやすい状態です" \
+      "Macを再起動してください" \
+      "再起動で圧縮メモリは必ず解放されます: ${COMPRESSED_GB}GB → ほぼ 0" \
+      "大"
+  fi
 elif ge "$COMPRESSED_GB" "$TH_COMPRESSED_WARN"; then
-  emit compressed 重さ "圧縮メモリ" WARN "${COMPRESSED_GB}GB" "4GB未満" \
-    "メモリの圧縮が増えています" \
-    "近いうちに再起動してください" \
-    "再起動で圧縮メモリは必ず解放されます: ${COMPRESSED_GB}GB → ほぼ 0" \
-    "中"
+  if recently_booted; then
+    emit compressed 重さ "圧縮メモリ" WARN "${COMPRESSED_GB}GB" "4GB未満" \
+      "メモリの圧縮が増えています。再起動して間もないため、これは経年の汚れではなく使用量そのものが原因です" \
+      "$(top_app) を閉じると減ります" \
+      "$(top_app) を閉じれば圧縮は減ります。再起動では解決しません" \
+      "中"
+  else
+    emit compressed 重さ "圧縮メモリ" WARN "${COMPRESSED_GB}GB" "4GB未満" \
+      "メモリの圧縮が増えています" \
+      "近いうちに再起動してください" \
+      "再起動で圧縮メモリは必ず解放されます: ${COMPRESSED_GB}GB → ほぼ 0" \
+      "中"
+  fi
 else
   emit compressed 重さ "圧縮メモリ" OK "${COMPRESSED_GB}GB" "4GB未満" \
     "問題ありません" "-" "-" "-"

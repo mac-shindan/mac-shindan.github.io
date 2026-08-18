@@ -7,6 +7,7 @@ ENVF="$2"
 MODEL=$(awk -F'=' '/^model_name=/{print $2}' "$ENVF")
 CHIP=$(awk -F'='  '/^chip=/{print $2}'       "$ENVF")
 MEM=$(awk -F'='   '/^memory_gb=/{print $2}'  "$ENVF")
+TOPMEM=$(awk -F'=' '/^top_mem=/{sub(/^top_mem=/,""); print}' "$ENVF")
 
 N_NG=$(awk -F'\t'   '$4=="NG"{n++}   END{print n+0}' "$TSV")
 N_WARN=$(awk -F'\t' '$4=="WARN"{n++} END{print n+0}' "$TSV")
@@ -72,6 +73,14 @@ h2{font-size:15px;margin:28px 0 10px;color:var(--sub)}
 .impact{display:inline-block;margin-right:8px;padding:1px 8px;border-radius:99px;font-size:12px;font-weight:700;color:#fff}
 .impact.i大{background:#0e9f6e}.impact.i中{background:#c27803}.impact.i小{background:#6b7280}
 .note{margin-top:20px;color:var(--sub);font-size:12px}
+.mem{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:10px}
+.mem h3{font-size:14px;margin:0 0 4px}
+.mem .hint{font-size:12px;color:var(--sub);margin:0 0 10px}
+.memrow{display:flex;align-items:center;gap:10px;margin-bottom:7px;font-size:14px}
+.memrow .nm{flex:0 0 42%;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.memrow .bar{flex:1;height:9px;background:var(--bg);border-radius:99px;overflow:hidden}
+.memrow .bar i{display:block;height:100%;background:#e02424;border-radius:99px}
+.memrow .gb{flex:0 0 62px;text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
 details{margin-top:8px}summary{cursor:pointer;color:var(--sub);font-size:14px;padding:6px 0}
 button{margin-top:28px;padding:12px 20px;font-size:15px;font-weight:700;cursor:pointer;
  border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--fg)}
@@ -84,7 +93,25 @@ HEAD
 [ "$N_NG" -gt 0 ]   && { echo '<h2>🔴 要対応</h2>'; cards NG; }
 [ "$N_WARN" -gt 0 ] && { echo '<h2>🟡 注意</h2>'; cards WARN; }
 
-echo '<details><summary>正常な項目・判定できなかった項目を表示</summary>'
+# メモリを多く使っているアプリ。何を閉じればよいかを名指しで示す。
+if [ -n "${TOPMEM:-}" ] && [ "$TOPMEM" != "UNKNOWN" ]; then
+  echo '<h2>メモリを多く使っているアプリ</h2>'
+  echo '<div class="mem">'
+  printf '  <h3>閉じるならこの順番です</h3>\n'
+  printf '  <p class="hint">搭載メモリ %s GB のうちの使用量です。ヘルパーは親アプリに合算しています（目安）。</p>\n' "$(printf '%s' "$MEM" | esc)"
+  MAXGB=$(printf '%s' "$TOPMEM" | awk -F, '{n=split($1,a,":"); print a[n]+0}')
+  printf '%s' "$TOPMEM" | tr ',' '\n' | while IFS= read -r item; do
+    [ -n "$item" ] || continue
+    nm=$(printf '%s' "$item" | awk -F: '{NF--; print}' OFS=:)
+    gb=$(printf '%s' "$item" | awk -F: '{print $NF}')
+    pct=$(awk -v g="$gb" -v m="$MAXGB" 'BEGIN{ if(m<=0){print 0}else{p=g/m*100; if(p>100)p=100; printf "%.0f", p} }')
+    printf '  <div class="memrow"><span class="nm">%s</span><span class="bar"><i style="width:%s%%"></i></span><span class="gb">%s GB</span></div>\n' \
+      "$(printf '%s' "$nm" | esc)" "$pct" "$(printf '%s' "$gb" | esc)"
+  done
+  echo '</div>'
+fi
+
+echo '<details><summary>正常な項目・判定できなかった項目を表示</summary>' 
 cards OK
 cards UNKNOWN
 echo '</details>'

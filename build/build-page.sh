@@ -46,7 +46,15 @@ DATE=$(date '+%Y-%m-%d')
   printf '%s\n' '</body>' '</html>'
 } > "$OUT"
 
+# ターミナル実行用のワンライナーも同じURLで生成する
+sed "s|__DOWNLOAD_URL__|$DOWNLOAD_URL|g" "$ROOT/build/run-template.sh" > "$ROOT/build/run.sh"
+chmod +x "$ROOT/build/run.sh"
+
 # 差し込み漏れがあれば失敗させる
+if grep -q '__DOWNLOAD_URL__' "$ROOT/build/run.sh"; then
+  echo "エラー: run.sh にプレースホルダが残っています" >&2
+  exit 1
+fi
 if grep -q '__DOWNLOAD_URL__\|__ZIP_SIZE__\|__BUILD_DATE__' "$OUT"; then
   echo "エラー: プレースホルダが残っています" >&2
   exit 1

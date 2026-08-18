@@ -261,6 +261,36 @@
     font-size: 14px;
   }
 
+  .cmd {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin: 12px 0;
+  }
+  .cmd code {
+    flex: 1 1 320px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13px;
+    background: var(--code-bg);
+    padding: 12px 14px;
+    border-radius: 8px;
+    word-break: break-all;
+  }
+  .copybtn {
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 11px 20px;
+    border-radius: 8px;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: var(--accent-ink);
+    cursor: pointer;
+  }
+  .copybtn:hover { filter: brightness(1.08); }
+  .copybtn:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+
   footer {
     border-top: 1px solid var(--line);
     padding-top: 18px;
@@ -303,7 +333,7 @@
           <div class="step-title">右クリックして「開く」を選ぶ</div>
           <div class="step-body">確認ダイアログが出たら、もう一度「開く」を押します。</div>
           <div class="alert"><strong>ダブルクリックでは開きません。</strong>「開発元を検証できないため開けません」と表示されます。社内で作ったアプリすべてに出る macOS の仕様で、故障ではありません。初回だけ右クリックしてください。2 回目からはダブルクリックで起動します。</div>
-          <div class="alert"><strong>右クリックしても開けない場合（macOS 15 Sequoia 以降）。</strong>一度そのままダブルクリックして警告を閉じたあと、<span class="quote">システム設定 → プライバシーとセキュリティ</span> を開いてください。下の方に「"Mac診断" は開発元を確認できないため、使用がブロックされました」と出ているので、<span class="quote">このまま開く</span> を押します。</div>
+          <div class="alert"><strong>右クリックしても開けない場合（macOS 15 Sequoia 以降）。</strong>一度そのままダブルクリックして警告を閉じたあと、<span class="quote">システム設定 → プライバシーとセキュリティ</span> を開いてください。下の方に「"Mac診断" は開発元を確認できないため、使用がブロックされました」と出ているので、<span class="quote">このまま開く</span> を押します。これでも開けないときは、下の「どうしても開けないときの確実な方法」をお使いください。</div>
         </div>
       </li>
       <li>
@@ -371,6 +401,36 @@
       </div>
     </div>
     <p class="assure" style="margin-top:14px">結果はあなたの Mac の中にだけ保存され、<strong>自動で送信されることはありません。</strong>情シスに相談するときは、結果画面の「結果をコピー」ボタンを押して貼り付けてください。何を送るかはあなたが決められます。</p>
+  </section>
+
+  <section>
+    <h2>どうしても開けないときの確実な方法</h2>
+    <p>「Apple が悪意のあるソフトウェアかどうかを確認できません」と出て開けない場合、
+    こちらの方法なら確実に動きます。警告は一切出ません。</p>
+    <ol class="steps">
+      <li>
+        <div>
+          <div class="step-title">下のボタンでコマンドをコピーする</div>
+          <div class="cmd">
+            <code id="cmd">curl -sL https://mac-shindan.github.io/run.sh | bash</code>
+            <button class="copybtn" type="button" onclick="navigator.clipboard.writeText(document.getElementById('cmd').textContent).then(()=>{this.textContent='コピーしました'})">コピー</button>
+          </div>
+        </div>
+      </li>
+      <li>
+        <div>
+          <div class="step-title">ターミナルを開く</div>
+          <div class="step-body">キーボードで <span class="quote">command + スペース</span> を押し、<span class="quote">ターミナル</span> と入力して Enter。</div>
+        </div>
+      </li>
+      <li>
+        <div>
+          <div class="step-title">貼り付けて Enter を押す</div>
+          <div class="step-body"><span class="quote">command + V</span> で貼り付け、Enter。10 秒ほどで結果がブラウザに開きます。
+          最後に「Dock に追加しますか」で追加すれば、次回からは Dock を 1 クリックするだけで、この作業は不要になります。</div>
+        </div>
+      </li>
+    </ol>
   </section>
 
   <section>

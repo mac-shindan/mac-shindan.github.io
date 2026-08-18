@@ -38,7 +38,7 @@ assert_status healthy.env          uptime OK
 assert_status memory_pressure.env  uptime WARN
 
 echo "== 出力の完全性 =="
-for f in healthy memory_pressure displaylink_idle thermal_air fresh_boot_pressure dl_installed_not_used; do
+for f in healthy memory_pressure displaylink_idle thermal_air fresh_boot_pressure dl_installed_not_used single_dl_monitor; do
   n=$(bash "$SRC_DIR/judge.sh" < "$TEST_DIR/fixtures/$f.env" | wc -l | tr -d ' ')
   assert_eq "$f.env は8項目を出力する" 8 "$n"
   cols=$(bash "$SRC_DIR/judge.sh" < "$TEST_DIR/fixtures/$f.env" | awk -F'\t' '{print NF}' | sort -u | tr '\n' ' ')
@@ -47,7 +47,7 @@ done
 
 echo "== 改善予測 =="
 # NG / WARN には必ず予測と体感度が入り、OK / UNKNOWN には入らないことを固定する。
-for f in healthy memory_pressure displaylink_idle thermal_air fresh_boot_pressure dl_installed_not_used; do
+for f in healthy memory_pressure displaylink_idle thermal_air fresh_boot_pressure dl_installed_not_used single_dl_monitor; do
   bad_missing=$(bash "$SRC_DIR/judge.sh" < "$TEST_DIR/fixtures/$f.env" \
     | awk -F'\t' '($4=="NG"||$4=="WARN") && ($9=="-"||$9==""||$10=="-"||$10=="")' | wc -l | tr -d ' ')
   assert_eq "$f.env: NG/WARN に予測がある" 0 "$bad_missing"
@@ -91,5 +91,16 @@ assert_contains dl_installed_not_used.env "直結"
 
 echo "== 実際にDisplayLink経由なら従来どおり検出する =="
 assert_status memory_pressure.env display_link NG
+
+echo "== DisplayLinkが原因なら「枚数を減らせ」と言わない =="
+# 外部1枚のみ。直結すれば解決するのに枚数を減らすよう案内するのは誤り。
+assert_status  single_dl_monitor.env windowserver WARN
+assert_contains single_dl_monitor.env "枚数を減らす必要はありません"
+if bash "$SRC_DIR/judge.sh" < "$TEST_DIR/fixtures/single_dl_monitor.env" \
+   | awk -F'\t' '$1=="windowserver"' | grep -q 'モニタの枚数を減らすと軽くなります'; then
+  FAILED=$((FAILED+1)); printf '  FAIL 枚数を減らすよう案内している\n'
+else
+  PASSED=$((PASSED+1)); printf '  ok   直結を案内している\n'
+fi
 
 finish

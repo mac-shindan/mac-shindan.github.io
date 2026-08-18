@@ -200,11 +200,21 @@ elif ge "$WINDOWSERVER_CPU" "$TH_WS_NG"; then
     "モニタを直結すると ${WINDOWSERVER_CPU}% → 5%前後まで下がる見込みです" \
     "大"
 elif ge "$WINDOWSERVER_CPU" "$TH_WS_WARN"; then
-  emit windowserver 重さ "画面描画の負荷" WARN "${WINDOWSERVER_CPU}%" "10%未満" \
-    "画面描画の負荷がやや高めです" \
-    "モニタの枚数を減らすと軽くなります" \
-    "モニタを1枚減らすと ${WINDOWSERVER_CPU}% から数ポイント下がります" \
-    "小"
+  # DisplayLink 経由のモニタがあるなら、原因は枚数ではなく接続方式。
+  # 「枚数を減らす」と案内すると、直結すれば済む人にモニタを諦めさせてしまう。
+  if [ "$DISPLAYLINK_DISPLAY_COUNT" != "UNKNOWN" ] && ge "$DISPLAYLINK_DISPLAY_COUNT" 1; then
+    emit windowserver 重さ "画面描画の負荷" WARN "${WINDOWSERVER_CPU}%" "10%未満" \
+      "画面描画の負荷がやや高めです。DisplayLink経由のモニタがあるため、その処理が原因です" \
+      "モニタをMacに直結してください。枚数を減らす必要はありません" \
+      "直結すると ${WINDOWSERVER_CPU}% → 5%前後まで下がる見込みです" \
+      "大"
+  else
+    emit windowserver 重さ "画面描画の負荷" WARN "${WINDOWSERVER_CPU}%" "10%未満" \
+      "画面描画の負荷がやや高めです" \
+      "モニタの枚数を減らすと軽くなります" \
+      "モニタを1枚減らすと ${WINDOWSERVER_CPU}% から数ポイント下がります" \
+      "小"
+  fi
 else
   emit windowserver 重さ "画面描画の負荷" OK "${WINDOWSERVER_CPU}%" "10%未満" \
     "問題ありません" "-" "-" "-"

@@ -16,7 +16,9 @@ assert_status memory_pressure.env  compressed NG
 echo "== モニタ接続方式 =="
 assert_status healthy.env          display_link OK
 assert_status memory_pressure.env  display_link NG
-assert_status displaylink_idle.env display_link WARN
+# 機器が無くソフトだけ残っている場合は重さの原因ではないため OK。
+# 以前はソフトの常駐だけで注意扱いにしていたが、誤解を招くため改めた。
+assert_status displaylink_idle.env display_link OK
 assert_contains memory_pressure.env "ケーブル"
 
 echo "== WindowServer 負荷 =="
@@ -38,7 +40,7 @@ assert_status healthy.env          uptime OK
 assert_status memory_pressure.env  uptime WARN
 
 echo "== 出力の完全性 =="
-for f in healthy memory_pressure displaylink_idle thermal_air fresh_boot_pressure dl_installed_not_used single_dl_monitor; do
+for f in healthy memory_pressure displaylink_idle thermal_air fresh_boot_pressure dl_installed_not_used single_dl_monitor plain_hub_no_dl; do
   n=$(bash "$SRC_DIR/judge.sh" < "$TEST_DIR/fixtures/$f.env" | wc -l | tr -d ' ')
   assert_eq "$f.env は8項目を出力する" 8 "$n"
   cols=$(bash "$SRC_DIR/judge.sh" < "$TEST_DIR/fixtures/$f.env" | awk -F'\t' '{print NF}' | sort -u | tr '\n' ' ')
@@ -47,7 +49,7 @@ done
 
 echo "== 改善予測 =="
 # NG / WARN には必ず予測と体感度が入り、OK / UNKNOWN には入らないことを固定する。
-for f in healthy memory_pressure displaylink_idle thermal_air fresh_boot_pressure dl_installed_not_used single_dl_monitor; do
+for f in healthy memory_pressure displaylink_idle thermal_air fresh_boot_pressure dl_installed_not_used single_dl_monitor plain_hub_no_dl; do
   bad_missing=$(bash "$SRC_DIR/judge.sh" < "$TEST_DIR/fixtures/$f.env" \
     | awk -F'\t' '($4=="NG"||$4=="WARN") && ($9=="-"||$9==""||$10=="-"||$10=="")' | wc -l | tr -d ' ')
   assert_eq "$f.env: NG/WARN に予測がある" 0 "$bad_missing"
@@ -102,5 +104,14 @@ if bash "$SRC_DIR/judge.sh" < "$TEST_DIR/fixtures/single_dl_monitor.env" \
 else
   PASSED=$((PASSED+1)); printf '  ok   直結を案内している\n'
 fi
+
+echo "== DisplayLink機器が繋がっていなければ🔴にしない =="
+# 従業員の実機: 1枚は直結、1枚は普通のハブ経由。DisplayLink機器は無い。
+# 接続方式が取得できないだけで DisplayLink と断定してはいけない。
+assert_status plain_hub_no_dl.env display_link OK
+
+echo "== DisplayLink機器が繋がっていれば🔴にし、製品名を示す =="
+assert_status  memory_pressure.env display_link NG
+assert_contains memory_pressure.env "USB3.0 5K Graphic Docking"
 
 finish

@@ -41,11 +41,26 @@ else
 fi
 emit_kv compressed_gb "$COMPRESSED_GB"
 
-# --- DisplayLink の常駐有無 ---
+# --- DisplayLink の常駐有無（ソフトが入っているかだけ。判定の主材料にはしない）---
 if ps -axo comm 2>/dev/null | grep -qiE 'displaylink|evdi'; then
   emit_kv displaylink_process 1
 else
   emit_kv displaylink_process 0
+fi
+
+# --- DisplayLink 機器が実際にUSBに繋がっているか ---
+# これが判定の主材料。ソフトの有無やモニタ側の情報欠落から推測するより確実で、
+# 製品名まで分かるため利用者が現物を確認できる。
+DL_DEV=$(system_profiler SPUSBDataType 2>/dev/null | awk '
+  /^ *[A-Za-z0-9].*:$/ { name=$0; sub(/^ +/,"",name); sub(/:$/,"",name) }
+  /Manufacturer: *DisplayLink/ { print name; exit }
+')
+if [ -n "$DL_DEV" ]; then
+  emit_kv displaylink_device 1
+  emit_kv displaylink_device_name "$DL_DEV"
+else
+  emit_kv displaylink_device 0
+  emit_kv displaylink_device_name "-"
 fi
 
 # --- モニタ1枚ずつの接続方式 ---
@@ -72,7 +87,7 @@ if [ -n "$DISP" ]; then
   emit_kv display_list "$(printf '%s\n' "$DISP" | awk '
     /^        [^ ].*:$/ { n++; nm[n]=$0; sub(/^ +/,"",nm[n]); sub(/:$/,"",nm[n]); ct[n]=""; next }
     /^ +Connection Type: / { c=$0; sub(/^ +Connection Type: +/,"",c); if(n>0) ct[n]=c }
-    END { for(i=1;i<=n;i++) printf "%s%s:%s", (i>1?",":""), nm[i], (ct[i]==""?"DisplayLink":ct[i]) }')"
+    END { for(i=1;i<=n;i++) printf "%s%s:%s", (i>1?",":""), nm[i], (ct[i]==""?"不明":ct[i]) }')"
 else
   emit_kv external_display_count    UNKNOWN
   emit_kv displaylink_display_count UNKNOWN

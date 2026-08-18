@@ -8,7 +8,8 @@ echo "== 必須キーがすべて出力される =="
 for k in model_name chip memory_gb free_pct swap_used_mb compressed_gb \
          displaylink_process external_display_count windowserver_cpu \
          cpu_speed_limit chrome_helper_count node_count claude_count \
-         displaylink_display_count display_list top_mem uptime_days; do
+         displaylink_display_count display_list displaylink_device \
+         displaylink_device_name top_mem uptime_days; do
   if echo "$OUT" | grep -q "^${k}="; then
     PASSED=$((PASSED+1)); printf '  ok   key %s\n' "$k"
   else
@@ -16,14 +17,14 @@ for k in model_name chip memory_gb free_pct swap_used_mb compressed_gb \
   fi
 done
 
-echo "== 出力行数がちょうど17である =="
+echo "== 出力行数がちょうど19である =="
 n_lines=$(printf '%s\n' "$OUT" | grep -c '=')
-assert_eq "17行を出力する" 17 "$n_lines"
+assert_eq "19行を出力する" 19 "$n_lines"
 
 echo "== 実測できた項目が10以上ある =="
 # 空出力や全滅を検知する。UNKNOWN が通常経路なのは cpu_speed_limit のみ。
 n_real=$(printf '%s\n' "$OUT" | grep '=' | grep -vc '=UNKNOWN$')
-if [ "$n_real" -ge 13 ]; then
+if [ "$n_real" -ge 15 ]; then
   PASSED=$((PASSED+1)); printf '  ok   実測できた項目 %s件\n' "$n_real"
 else
   FAILED=$((FAILED+1)); printf '  FAIL 実測できた項目が少なすぎる (%s件)\n' "$n_real"

@@ -14,6 +14,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 FREE_PCT=UNKNOWN;            SWAP_USED_MB=UNKNOWN;   COMPRESSED_GB=UNKNOWN
 DISPLAYLINK_PROCESS=UNKNOWN; EXTERNAL_DISPLAY_COUNT=UNKNOWN
 DISPLAYLINK_DISPLAY_COUNT=UNKNOWN; DISPLAY_LIST=UNKNOWN
+DISPLAYLINK_DEVICE=UNKNOWN; DISPLAYLINK_DEVICE_NAME=UNKNOWN
 WINDOWSERVER_CPU=UNKNOWN;    CPU_SPEED_LIMIT=UNKNOWN
 CHROME_HELPER_COUNT=UNKNOWN; NODE_COUNT=UNKNOWN;     CLAUDE_COUNT=UNKNOWN
 UPTIME_DAYS=UNKNOWN;         MODEL_NAME=UNKNOWN;     TOP_MEM=UNKNOWN
@@ -28,6 +29,8 @@ while IFS='=' read -r k v; do
     external_display_count) EXTERNAL_DISPLAY_COUNT="$v" ;;
     displaylink_display_count) DISPLAYLINK_DISPLAY_COUNT="$v" ;;
     display_list)           DISPLAY_LIST="$v" ;;
+    displaylink_device)     DISPLAYLINK_DEVICE="$v" ;;
+    displaylink_device_name) DISPLAYLINK_DEVICE_NAME="$v" ;;
     windowserver_cpu)       WINDOWSERVER_CPU="$v" ;;
     cpu_speed_limit)        CPU_SPEED_LIMIT="$v" ;;
     chrome_helper_count)    CHROME_HELPER_COUNT="$v" ;;
@@ -154,33 +157,34 @@ else
 fi
 
 # --- 4. モニタ接続方式 ---
-# 判定はモニタ1枚ずつの接続方式で行う。DisplayLink Manager が入っているだけで
-# 実際は直結している人を 🔴 と誤判定していたため、ソフトの常駐有無では判定しない。
-if [ "$DISPLAYLINK_DISPLAY_COUNT" = "UNKNOWN" ]; then
+# 判定の主材料は「DisplayLink機器がUSBに繋がっているか」。
+#
+# 以前はモニタ側の接続方式が取得できないことを根拠に DisplayLink と断定していたが、
+# 直結のモニタでも取得できない場合があり、誤判定の報告が出た。macOS が接続方式を
+# 出さない理由は特定できなかったため、断定できる材料だけで判定する方式に変えた。
+if [ "$DISPLAYLINK_DEVICE" = "UNKNOWN" ] || [ "$EXTERNAL_DISPLAY_COUNT" = "UNKNOWN" ]; then
   emit display_link 重さ "モニタ接続方式" UNKNOWN "-" "直結" \
     "モニタの接続方式を取得できませんでした" "-" "-" "-"
-elif ge "$DISPLAYLINK_DISPLAY_COUNT" 1; then
+elif [ "$DISPLAYLINK_DEVICE" = "1" ] && ge "$EXTERNAL_DISPLAY_COUNT" 1; then
   if [ "$WINDOWSERVER_CPU" = "UNKNOWN" ]; then
     DL_EXPECT="映像の圧縮処理がなくなり、画面描画のCPU負荷がほぼゼロになります"
   else
     DL_EXPECT="画面描画の負荷が下がります: ${WINDOWSERVER_CPU}% → 5%前後が目安"
   fi
-  emit display_link 重さ "モニタ接続方式" NG "DisplayLink経由（${DISPLAYLINK_DISPLAY_COUNT}台）" "直結" \
-    "モニタが映像圧縮方式（DisplayLink）で接続されています。CPUで映像を作っているためMac全体が重くなります。買い替えでは解決しません" \
-    "USB-C／Thunderbolt でモニタをMacに直結してください。ケーブル交換（数千円）で解決します" \
+  emit display_link 重さ "モニタ接続方式" NG "DisplayLink機器を経由（${DISPLAYLINK_DEVICE_NAME}）" "直結" \
+    "「${DISPLAYLINK_DEVICE_NAME}」は映像をCPUで作って送るDisplayLink方式の機器です。これを経由したモニタはMac全体を重くします。買い替えでは解決しません" \
+    "この機器を経由しているモニタを、USB-C／Thunderbolt でMacに直結してください。ケーブル交換（数千円）で解決します" \
     "$DL_EXPECT" \
     "大"
-elif [ "$DISPLAYLINK_PROCESS" = "1" ] && [ "$EXTERNAL_DISPLAY_COUNT" = "0" ]; then
-  # 外部モニタが1枚も無いのにソフトだけ常駐している。純粋な無駄。
-  emit display_link 重さ "モニタ接続方式" WARN "DisplayLink常駐（外部モニタ未接続）" "直結" \
-    "外部モニタは接続されていませんが、DisplayLinkのソフトが常駐しています" \
-    "モニタを使わないなら DisplayLink Manager を終了してください" \
+elif [ "$DISPLAYLINK_DEVICE" = "1" ]; then
+  emit display_link 重さ "モニタ接続方式" WARN "DisplayLink機器あり（外部モニタ未接続）" "直結" \
+    "外部モニタは接続されていませんが、DisplayLink機器（${DISPLAYLINK_DEVICE_NAME}）が繋がっています" \
+    "モニタを使わないなら取り外してください" \
     "常駐分のCPUとメモリが空きます（体感の変化は小さめです）" \
     "小"
 elif [ "$DISPLAYLINK_PROCESS" = "1" ]; then
-  # ソフトは常駐しているが、モニタは全て直結されている。重さの原因ではない。
-  emit display_link 重さ "モニタ接続方式" OK "直結（DisplayLinkソフトは常駐）" "直結" \
-    "モニタはすべて直結されています。DisplayLinkのソフトは入っていますが、映像はMacのGPUが直接描いており重さの原因にはなっていません" \
+  emit display_link 重さ "モニタ接続方式" OK "直結（DisplayLinkソフトのみ常駐）" "直結" \
+    "DisplayLink機器は繋がっていません。ソフトだけが残っていますが、映像はMacが直接描いており重さの原因にはなっていません" \
     "-" "-" "-"
 else
   emit display_link 重さ "モニタ接続方式" OK "直結" "直結" \
@@ -202,7 +206,7 @@ elif ge "$WINDOWSERVER_CPU" "$TH_WS_NG"; then
 elif ge "$WINDOWSERVER_CPU" "$TH_WS_WARN"; then
   # DisplayLink 経由のモニタがあるなら、原因は枚数ではなく接続方式。
   # 「枚数を減らす」と案内すると、直結すれば済む人にモニタを諦めさせてしまう。
-  if [ "$DISPLAYLINK_DISPLAY_COUNT" != "UNKNOWN" ] && ge "$DISPLAYLINK_DISPLAY_COUNT" 1; then
+  if [ "$DISPLAYLINK_DEVICE" = "1" ]; then
     emit windowserver 重さ "画面描画の負荷" WARN "${WINDOWSERVER_CPU}%" "10%未満" \
       "画面描画の負荷がやや高めです。DisplayLink経由のモニタがあるため、その処理が原因です" \
       "モニタをMacに直結してください。枚数を減らす必要はありません" \

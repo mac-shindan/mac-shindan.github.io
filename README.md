@@ -8,7 +8,7 @@ PC に詳しくない人が自分で実行できることを目的にしてい�
 
 ## ダウンロード
 
-**配布ページ: https://miyauchi0622.github.io/mac-doctor/**
+**配布ページ: https://mac-shindan.github.io/**
 
 使い方の説明つきのページです。ログインは不要です。
 

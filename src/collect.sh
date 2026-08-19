@@ -17,6 +17,19 @@ emit_kv model_name "$MODEL_NAME"
 emit_kv chip       "$CHIP"
 emit_kv memory_gb  "$MEMORY_GB"
 
+# --- この Mac が直接扱える外部モニタの枚数 ---
+# Apple Silicon は機種ごとに上限があり、それを超える分は DisplayLink 等の
+# ソフト描画に頼るしかない。上限を知らないと「直結してください」という
+# 実行不可能な案内をしてしまうため、チップ名から判定する。
+# 判断できない場合は UNKNOWN とし、上限を根拠にした案内はしない。
+case "$CHIP" in
+  *Pro*|*Max*|*Ultra*) NATIVE_LIMIT=2 ;;   # 控えめに2（実際はそれ以上のことも）
+  *M1*|*M2*|*M3*)      NATIVE_LIMIT=1 ;;   # 無印のAir/13インチProは1枚
+  *M4*|*M5*)           NATIVE_LIMIT=2 ;;
+  *)                   NATIVE_LIMIT=UNKNOWN ;;
+esac
+emit_kv native_display_limit "$NATIVE_LIMIT"
+
 # --- メモリ空き率 ---
 # 実測: "System-wide memory free percentage: 33%"
 FREE_PCT=$(memory_pressure 2>/dev/null \

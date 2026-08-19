@@ -10,7 +10,7 @@ n_ext=$(printf '%s\n' "$HTML" | grep -cE 'https?://|src="//|href="//' || true)
 assert_eq "外部URLを含まない" 0 "$n_ext"
 
 echo "== 必要な内容が含まれる =="
-for needle in "要対応" "スワップ" "モニタ接続方式" "ケーブル" "結果をコピー" "MacBook Air" \
+for needle in "要対応" "スワップ" "モニタ接続方式" "限界です" "結果をコピー" "MacBook Air" \
               "体感" "ほぼ 0" "目安です"; do
   if printf '%s\n' "$HTML" | grep -q "$needle"; then
     PASSED=$((PASSED+1)); printf '  ok   "%s" を含む\n' "$needle"

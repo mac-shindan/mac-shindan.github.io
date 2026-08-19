@@ -15,6 +15,7 @@ FREE_PCT=UNKNOWN;            SWAP_USED_MB=UNKNOWN;   COMPRESSED_GB=UNKNOWN
 DISPLAYLINK_PROCESS=UNKNOWN; EXTERNAL_DISPLAY_COUNT=UNKNOWN
 DISPLAYLINK_DISPLAY_COUNT=UNKNOWN; DISPLAY_LIST=UNKNOWN
 DISPLAYLINK_DEVICE=UNKNOWN; DISPLAYLINK_DEVICE_NAME=UNKNOWN
+NATIVE_DISPLAY_LIMIT=UNKNOWN
 WINDOWSERVER_CPU=UNKNOWN;    CPU_SPEED_LIMIT=UNKNOWN
 CHROME_HELPER_COUNT=UNKNOWN; NODE_COUNT=UNKNOWN;     CLAUDE_COUNT=UNKNOWN
 UPTIME_DAYS=UNKNOWN;         MODEL_NAME=UNKNOWN;     TOP_MEM=UNKNOWN
@@ -31,6 +32,7 @@ while IFS='=' read -r k v; do
     display_list)           DISPLAY_LIST="$v" ;;
     displaylink_device)     DISPLAYLINK_DEVICE="$v" ;;
     displaylink_device_name) DISPLAYLINK_DEVICE_NAME="$v" ;;
+    native_display_limit)   NATIVE_DISPLAY_LIMIT="$v" ;;
     windowserver_cpu)       WINDOWSERVER_CPU="$v" ;;
     cpu_speed_limit)        CPU_SPEED_LIMIT="$v" ;;
     chrome_helper_count)    CHROME_HELPER_COUNT="$v" ;;
@@ -166,16 +168,31 @@ if [ "$DISPLAYLINK_DEVICE" = "UNKNOWN" ] || [ "$EXTERNAL_DISPLAY_COUNT" = "UNKNO
   emit display_link 重さ "モニタ接続方式" UNKNOWN "-" "直結" \
     "モニタの接続方式を取得できませんでした" "-" "-" "-"
 elif [ "$DISPLAYLINK_DEVICE" = "1" ] && ge "$EXTERNAL_DISPLAY_COUNT" 1; then
-  if [ "$WINDOWSERVER_CPU" = "UNKNOWN" ]; then
-    DL_EXPECT="映像の圧縮処理がなくなり、画面描画のCPU負荷がほぼゼロになります"
-  else
-    DL_EXPECT="画面描画の負荷が下がります: ${WINDOWSERVER_CPU}% → 5%前後が目安"
+  # このMacが直接扱える枚数を超えている場合、超過分は必ずDisplayLinkになる。
+  # 全部を直結するよう案内すると、実行不可能なことを要求してしまう。
+  AT_LIMIT=0
+  if [ "$NATIVE_DISPLAY_LIMIT" != "UNKNOWN" ] && ge "$EXTERNAL_DISPLAY_COUNT" "$((NATIVE_DISPLAY_LIMIT + 1))"; then
+    AT_LIMIT=1
   fi
-  emit display_link 重さ "モニタ接続方式" NG "DisplayLink機器を経由（${DISPLAYLINK_DEVICE_NAME}）" "直結" \
-    "「${DISPLAYLINK_DEVICE_NAME}」は映像をCPUで作って送るDisplayLink方式の機器です。これを経由したモニタはMac全体を重くします。買い替えでは解決しません" \
-    "この機器を経由しているモニタを、USB-C／Thunderbolt でMacに直結してください。ケーブル交換（数千円）で解決します" \
-    "$DL_EXPECT" \
-    "大"
+
+  if [ "$AT_LIMIT" = "1" ]; then
+    emit display_link 重さ "モニタ接続方式" NG "DisplayLink機器を経由（${DISPLAYLINK_DEVICE_NAME}）" "直結" \
+      "このMacが直接扱える外部モニタは${NATIVE_DISPLAY_LIMIT}枚までで、現在${EXTERNAL_DISPLAY_COUNT}枚つないでいます。超えた分は「${DISPLAYLINK_DEVICE_NAME}」がCPUで映像を作って補っており、その分だけ重くなります" \
+      "${NATIVE_DISPLAY_LIMIT}枚をMacに直結してください。すでに直結済みなら、これがこのMacの限界です。全部を直結したい場合はMacBook Pro（Proチップ以上）が必要です" \
+      "直結できるのは${NATIVE_DISPLAY_LIMIT}枚までのため、残り$((EXTERNAL_DISPLAY_COUNT - NATIVE_DISPLAY_LIMIT))枚分の負荷は残ります" \
+      "中"
+  else
+    if [ "$WINDOWSERVER_CPU" = "UNKNOWN" ]; then
+      DL_EXPECT="映像の圧縮処理がなくなり、画面描画のCPU負荷がほぼゼロになります"
+    else
+      DL_EXPECT="画面描画の負荷が下がります: ${WINDOWSERVER_CPU}% → 5%前後が目安"
+    fi
+    emit display_link 重さ "モニタ接続方式" NG "DisplayLink機器を経由（${DISPLAYLINK_DEVICE_NAME}）" "直結" \
+      "「${DISPLAYLINK_DEVICE_NAME}」は映像をCPUで作って送るDisplayLink方式の機器です。これを経由したモニタはMac全体を重くします。買い替えでは解決しません" \
+      "この機器を経由しているモニタを、USB-C／Thunderbolt でMacに直結してください。ケーブル交換（数千円）で解決します" \
+      "$DL_EXPECT" \
+      "大"
+  fi
 elif [ "$DISPLAYLINK_DEVICE" = "1" ]; then
   emit display_link 重さ "モニタ接続方式" WARN "DisplayLink機器あり（外部モニタ未接続）" "直結" \
     "外部モニタは接続されていませんが、DisplayLink機器（${DISPLAYLINK_DEVICE_NAME}）が繋がっています" \

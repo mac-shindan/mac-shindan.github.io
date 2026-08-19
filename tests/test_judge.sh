@@ -19,7 +19,9 @@ assert_status memory_pressure.env  display_link NG
 # 機器が無くソフトだけ残っている場合は重さの原因ではないため OK。
 # 以前はソフトの常駐だけで注意扱いにしていたが、誤解を招くため改めた。
 assert_status displaylink_idle.env display_link OK
-assert_contains memory_pressure.env "ケーブル"
+# 上限に余裕があるケース（外部1枚・直接扱えるのも1枚）でケーブル交換を案内する。
+# memory_pressure は外部2枚で上限超えのため、案内内容が異なるのが正しい。
+assert_contains single_dl_monitor.env "ケーブル"
 
 echo "== WindowServer 負荷 =="
 assert_status healthy.env          windowserver OK
@@ -40,7 +42,7 @@ assert_status healthy.env          uptime OK
 assert_status memory_pressure.env  uptime WARN
 
 echo "== 出力の完全性 =="
-for f in healthy memory_pressure displaylink_idle thermal_air fresh_boot_pressure dl_installed_not_used single_dl_monitor plain_hub_no_dl; do
+for f in healthy memory_pressure displaylink_idle thermal_air fresh_boot_pressure dl_installed_not_used single_dl_monitor plain_hub_no_dl at_native_limit; do
   n=$(bash "$SRC_DIR/judge.sh" < "$TEST_DIR/fixtures/$f.env" | wc -l | tr -d ' ')
   assert_eq "$f.env は8項目を出力する" 8 "$n"
   cols=$(bash "$SRC_DIR/judge.sh" < "$TEST_DIR/fixtures/$f.env" | awk -F'\t' '{print NF}' | sort -u | tr '\n' ' ')
@@ -49,7 +51,7 @@ done
 
 echo "== 改善予測 =="
 # NG / WARN には必ず予測と体感度が入り、OK / UNKNOWN には入らないことを固定する。
-for f in healthy memory_pressure displaylink_idle thermal_air fresh_boot_pressure dl_installed_not_used single_dl_monitor plain_hub_no_dl; do
+for f in healthy memory_pressure displaylink_idle thermal_air fresh_boot_pressure dl_installed_not_used single_dl_monitor plain_hub_no_dl at_native_limit; do
   bad_missing=$(bash "$SRC_DIR/judge.sh" < "$TEST_DIR/fixtures/$f.env" \
     | awk -F'\t' '($4=="NG"||$4=="WARN") && ($9=="-"||$9==""||$10=="-"||$10=="")' | wc -l | tr -d ' ')
   assert_eq "$f.env: NG/WARN に予測がある" 0 "$bad_missing"
@@ -113,5 +115,18 @@ assert_status plain_hub_no_dl.env display_link OK
 echo "== DisplayLink機器が繋がっていれば🔴にし、製品名を示す =="
 assert_status  memory_pressure.env display_link NG
 assert_contains memory_pressure.env "USB3.0 5K Graphic Docking"
+
+echo "== 直結の上限に達している場合は不可能な案内をしない =="
+# 外部2枚・直接扱えるのは1枚のMac。1枚は既に直結済みで、これ以上は改善不可。
+assert_contains at_native_limit.env "1枚"
+if bash "$SRC_DIR/judge.sh" < "$TEST_DIR/fixtures/at_native_limit.env" \
+   | awk -F'\t' '$1=="display_link"{print $9}' | grep -q '5%前後'; then
+  FAILED=$((FAILED+1)); printf '  FAIL 達成できない改善見込みを出している\n'
+else
+  PASSED=$((PASSED+1)); printf '  ok   達成できない見込みを出していない\n'
+fi
+
+echo "== 上限に余裕があれば従来どおり直結を勧める =="
+assert_contains memory_pressure.env "直結してください"
 
 finish

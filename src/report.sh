@@ -102,15 +102,15 @@ HEAD
 if [ -n "${DISPLIST:-}" ] && [ "$DISPLIST" != "UNKNOWN" ]; then
   echo '<h2>接続中のモニタ</h2>'
   echo '<div class="mem">'
-  printf '  <p class="hint">「DisplayLink」と出ているモニタは、映像をCPUで作って送る方式です。Macに直結すると軽くなります。</p>\n'
+  printf '  <p class="hint">macOSは外部モニタの接続方式を出さないことがあり、「不明」は直結・DisplayLink経由のどちらもあり得ます。判定は上の「モニタ接続方式」を見てください。</p>\n'
   printf '%s' "$DISPLIST" | tr ',' '\n' | while IFS= read -r item; do
     [ -n "$item" ] || continue
     dn=$(printf '%s' "$item" | awk -F: '{NF--; print}' OFS=:)
     dc=$(printf '%s' "$item" | awk -F: '{print $NF}')
     case "$dc" in
-      DisplayLink) mk='<span class="impact i大" style="background:#e02424">DisplayLink</span>' ;;
-      Internal)    mk='<span class="impact i小">内蔵</span>' ;;
-      *)           mk='<span class="impact i大">直結</span>' ;;
+      Internal) mk='<span class="impact i小">内蔵</span>'; dc='内蔵ディスプレイ' ;;
+      不明)     mk='<span class="impact i中">外部</span>'; dc='接続方式は取得できません' ;;
+      *)        mk='<span class="impact i大">直結</span>' ;;
     esac
     printf '  <div class="memrow"><span class="nm">%s</span><span style="flex:1">%s %s</span></div>\n' \
       "$(printf '%s' "$dn" | esc)" "$mk" "$(printf '%s' "$dc" | esc)"

@@ -56,13 +56,20 @@ for needle in 'href="macshindan://run"' 'もう一度診断する' 'Dock の Mac
 done
 
 echo "== 判定の根拠としてモニタ一覧を表示する =="
-for needle in "接続中のモニタ" "DisplayLink" "EX-LDH241DB"; do
+for needle in "接続中のモニタ" "EX-LDH241DB" "接続方式は取得できません"; do
   if printf '%s\n' "$HTML" | grep -qF "$needle"; then
     PASSED=$((PASSED+1)); printf '  ok   "%s" を含む\n' "$needle"
   else
     FAILED=$((FAILED+1)); printf '  FAIL "%s" を含まない\n' "$needle"
   fi
 done
+
+echo "== 不明な接続方式をDisplayLinkと断定しない =="
+if printf '%s\n' "$HTML" | grep -qF '>DisplayLink</span>'; then
+  FAILED=$((FAILED+1)); printf '  FAIL モニタ一覧でDisplayLinkと断定している\n'
+else
+  PASSED=$((PASSED+1)); printf '  ok   断定していない\n'
+fi
 
 rm -f "$TSV"
 finish
